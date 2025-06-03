@@ -2,9 +2,10 @@ from .cards import create_deck, shuffle_deck, deal_cards_koi_koi
 from .yaku import get_formed_yaku # New import
 
 class KoiKoiGame:
-    def __init__(self, player1_id="Player 1", player2_id="Player 2"):
+    def __init__(self, player1_id="Player 1", player2_id="Player 2", theme: str = "traditional"):
         self.player_ids = {1: player1_id, 2: player2_id}
-        self.deck = create_deck()
+        self.current_theme = theme
+        self.deck = create_deck(theme=self.current_theme)
         shuffle_deck(self.deck)
 
         player1_hand, player2_hand, self.field_cards = deal_cards_koi_koi(self.deck)
@@ -272,8 +273,10 @@ class KoiKoiGame:
             
             return {"success": True, "action": "shojo_round_ends", "winner": player_num, "final_score": final_round_score, "yaku_formed": yaku_names_display}
        
-    def start_new_round(self):
-        self.deck = create_deck()
+    def start_new_round(self, theme: str | None = None):
+        if theme is not None:
+            self.current_theme = theme
+        self.deck = create_deck(theme=self.current_theme)
         shuffle_deck(self.deck)
         player1_hand, player2_hand, self.field_cards = deal_cards_koi_koi(self.deck)
         self.player_hands = {1: player1_hand, 2: player2_hand}
@@ -295,16 +298,54 @@ class KoiKoiGame:
 
 
 if __name__ == '__main__':
-    game = KoiKoiGame("Alice", "Bob")
-    game.start_new_round() # Initialize hands and field for the test
+    # Test with "pop" theme
+    game = KoiKoiGame("Alice", "Bob", theme="pop")
+    # game.start_new_round() # start_new_round is called at the beginning of the loop below
+    # No, __init__ already deals, start_new_round would reset if called immediately.
+    # Let's verify the initial setup from __init__ first.
+
+    print("Verifying theme in initial game setup (theme='pop'):")
+    if game.get_field_cards():
+        for i, card in enumerate(game.get_field_cards()[:3]): # Print first 3 field cards
+            print(f"Field card {i+1}: {card['name']}, Image: {card['image_filename']}")
+    if game.get_player_hand(1):
+        for i, card in enumerate(game.get_player_hand(1)[:3]): # Print first 3 cards of P1
+            print(f"Player 1 hand card {i+1}: {card['name']}, Image: {card['image_filename']}")
+    print("-" * 30)
 
     # Simulate game flow for a few turns or until round ends
+    # The existing loop calls start_new_round, let's ensure it uses the theme.
+    # For this test, let's assume start_new_round will use the game's current_theme.
+    # If we wanted to change theme mid-test, we'd pass it to start_new_round.
+    # For now, let's see if the initial theme persists or if start_new_round needs explicit theme.
+    # The current implementation of start_new_round will use self.current_theme if no theme is passed.
+
+    game.start_new_round() # This will use self.current_theme ("pop")
+    print("\nVerifying theme after first start_new_round (should still be 'pop'):")
+    if game.get_field_cards():
+        for i, card in enumerate(game.get_field_cards()[:2]):
+            print(f"Field card {i+1} (after round start): {card['name']}, Image: {card['image_filename']}")
+    print("-" * 30)
+
+    # Test changing theme with start_new_round
+    game.start_new_round(theme="modern")
+    print("\nVerifying theme after start_new_round (theme='modern'):")
+    if game.get_field_cards():
+        for i, card in enumerate(game.get_field_cards()[:2]):
+            print(f"Field card {i+1} (modern theme): {card['name']}, Image: {card['image_filename']}")
+    if game.get_player_hand(1):
+        for i, card in enumerate(game.get_player_hand(1)[:2]):
+            print(f"P1 hand card {i+1} (modern theme): {card['name']}, Image: {card['image_filename']}")
+    print("-" * 30)
     MAX_TURNS = 16 # Each player plays from hand then draws = 1 turn for them. 8 such pairs approx.
     turns_played = 0
 
+    # The game loop will now use the "modern" theme set by the last start_new_round call
+    print(f"\nStarting game loop with theme: {game.current_theme}\n")
+
     while not game.game_over_for_round and turns_played < MAX_TURNS:
         current_p_id = game.current_player_num
-        print(f"\n--- {game.player_ids[current_p_id]}'s Turn (Turn {turns_played // 2 + 1}) ---")
+        print(f"\n--- {game.player_ids[current_p_id]}'s Turn (Turn {turns_played // 2 + 1}) --- Theme: {game.current_theme} ---")
         print(f"Hand: {[c['name'] for c in game.get_player_hand(current_p_id)]}")
         print(f"Field: {[c['name'] for c in game.get_field_cards()]}")
         print(f"Captured P1: {[c['name'] for c in game.get_player_captured_pile(1)]}")
